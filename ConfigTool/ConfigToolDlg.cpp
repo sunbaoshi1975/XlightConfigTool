@@ -180,7 +180,7 @@ void CConfigToolDlg::OnBnClickedButton2()
 	// TODO: 在此添加控件通知处理程序代码
 	UC uniqueid[8] = { 0x00,0x24,0x00,0x3A,0x0E,0x47,0x31,0x32 };
 	int a = sizeof(SuperSensorConfig_t);
-	m_spSerialDP->SendGetConfigByUniqueid(uniqueid, 8, 0, 0);
+	m_spSerialDP->SendGetConfigByUniqueid(uniqueid, 8, 4, 1);
 }
 
 
@@ -188,6 +188,6 @@ void CConfigToolDlg::OnBnClickedButton3()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	UC uniqueid[8] = { 0x00,0x24,0x00,0x3A,0x0E,0x47,0x31,0x32 };
-	UC subid[1] = { 0xFF };
-	m_spSerialDP->SendSetConfigByUniqueid(uniqueid,8,subid,4,1);
+	UC subid[1] = { 0x47 };
+	m_spSerialDP->SendSetConfigByNodeid(130,0,subid,4,1);
 }

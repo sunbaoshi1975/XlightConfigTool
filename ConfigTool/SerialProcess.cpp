@@ -190,18 +190,22 @@ BOOL CDataProcesser::SendStartScan(BYTE channel,BYTE bandwidth,BYTE powerlevel,B
 BOOL CDataProcesser::SendSetConfigByNodeid(UC nodeid,UC subid,const UC * pCfgData, UC offset,UC size)
 {
 	int left = size;
+	int sendoffset = 0;
 	do
 	{
-		MySetConfigByNode_t setCfgBynode;
-		setCfgBynode.subtype = SCANNER_SETCONFIG;
-		setCfgBynode.offset = offset;
-		int payl_len = left < sizeof(setCfgBynode.ConfigBlock) ? left : sizeof(setCfgBynode.ConfigBlock);
-		memcpy(setCfgBynode.ConfigBlock, pCfgData + offset, payl_len);
-		UC length = sizeof(MySetConfigByNode_t) + 1;
+		MySetConfigByNode_t setCfgByNode;
+		setCfgByNode.subtype = SCANNER_SETCONFIG;
+		setCfgByNode.offset = offset;
+		int payl_len = left < sizeof(setCfgByNode.ConfigBlock) ? left : sizeof(setCfgByNode.ConfigBlock);
+		memcpy(setCfgByNode.ConfigBlock, pCfgData + sendoffset, payl_len);
+		UC length = 2 + payl_len;
 		SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
-		build(spMsg, 255, 0, C_INTERNAL, I_GET_NONCE, 1, 0);
-		memcpy(&(spMsg->data[0]), &setCfgBynode, length - 1);
+		build(spMsg, nodeid, subid, C_INTERNAL, I_GET_NONCE, 1, 0);
+		mSetLength(spMsg, length);
+		memcpy(&(spMsg->data[0]), &setCfgByNode, length);
 		m_arrOutMsg.Add(spMsg);
+		m_evtOutData.SetEvent();
+		sendoffset += payl_len;
 		offset += payl_len;
 		left -= payl_len;
 	} while (left > 0);
@@ -320,7 +324,7 @@ int CDataProcesser::ProcessGetConfig(SPScanMsgPtr lpMsg)
 		{
 			unsigned char playloadsize = mGetLength(lpMsg);
 			unsigned char cfgblocksize = playloadsize - 1;
-			memcpy(&g_SuperSensorCfg + offset, &(lpMsg->data[2]), cfgblocksize);
+			memcpy((void *)((size_t)(&g_SuperSensorCfg) + offset), &(lpMsg->data[2]), cfgblocksize);
 			CString sbtnActionHex = "";
 			for (DWORD i = 0; i < MAX_NUM_BUTTONS; i++)
 			{
