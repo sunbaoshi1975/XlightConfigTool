@@ -1,6 +1,7 @@
 #pragma once
 #include "PicaSoftSerial.h"
 #include "MyMessage.h"
+#include "Protocol.h"
 #define RFS_MESSAGE_HEAD_0      0x55
 #define RFS_MESSAGE_HEAD_1      0xAA
 #define RFS_CMD_SCAN_START      'S'
@@ -32,6 +33,8 @@ public:
 	BOOL SendSetConfigByUniqueid(UC* uniqueid, UC uniLen, const UC * pCfgData, UC offset, UC size);
 	BOOL SendGetConfigByUniqueid(UC* uniqueid, UC uniLen, UC offset, UC size);
 	BOOL SendGetConfigByNode(UC nodeid, UC subid, UC offset, UC size);
+	BOOL SendRFByNode(UC Nodeid,UC subid, MySetUpRFByNode_t& rfparam);
+	BOOL SendRFByUniqueid(UC* uniqueid, UC uniLen, MySetUpRF_t& rfparam);
 	int ProcessSerialMsg(SPScanMsgPtr lpMsg);
 	int ProcessProbe(SPScanMsgPtr lpMsg);
 	int ProcessGetConfig(SPScanMsgPtr lpMsg);

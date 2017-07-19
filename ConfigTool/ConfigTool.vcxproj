@@ -76,7 +76,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>.;D:\Common;D:\Common\ThirdParty\boost_1_57_0;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\Common\ThirdParty\boost_1_57_0\libs;$(LibraryPath)</LibraryPath>
+    <LibraryPath>D:\Common\ThirdParty\boost_1_57_0\libs;D:\Common\Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -97,6 +97,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalDependencies>libjson_mdd.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -199,11 +200,18 @@
     <ClInclude Include="..\..\..\..\Common\PicaSoftMultiThread.h" />
     <ClInclude Include="..\..\..\..\Common\PicaSoftObject.h" />
     <ClInclude Include="..\..\..\..\Common\PicaSoftSerial.h" />
+    <ClInclude Include="ConfigCenter.h" />
     <ClInclude Include="ConfigTool.h" />
     <ClInclude Include="ConfigToolDlg.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="MyMessage.h" />
     <ClInclude Include="Protocol.h" />
+    <ClInclude Include="Public.h" />
+    <ClInclude Include="rapidjson\document.h" />
+    <ClInclude Include="rapidjson\rapidjson.h" />
+    <ClInclude Include="rapidjson\reader.h" />
+    <ClInclude Include="rapidjson\stringbuffer.h" />
+    <ClInclude Include="rapidjson\writer.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SerialProcess.h" />
     <ClInclude Include="stdafx.h" />
@@ -220,8 +228,10 @@
     <ClCompile Include="..\..\..\..\Common\PicaSoftMultiThread.cpp" />
     <ClCompile Include="..\..\..\..\Common\PicaSoftObject.cpp" />
     <ClCompile Include="..\..\..\..\Common\PicaSoftSerial.cpp" />
+    <ClCompile Include="ConfigCenter.cpp" />
     <ClCompile Include="ConfigTool.cpp" />
     <ClCompile Include="ConfigToolDlg.cpp" />
+    <ClCompile Include="Public.cpp" />
     <ClCompile Include="SerialProcess.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

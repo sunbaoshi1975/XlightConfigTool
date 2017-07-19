@@ -50,3 +50,27 @@ typedef struct
 	UC scanstatus;
 }ScannerStatus_t;
 extern ScannerStatus_t g_ScannerStatus;
+
+typedef struct
+{
+	UC version;
+	UC type;
+	UC nodeID;
+	UC subID;
+	UC rfChannel;
+	UC rfDataRate;
+	UC rfPowerLevel;
+	UC networkID[6];
+}BaseDeviceInfo_t;
+
+//template < class T >
+//class CConfigData
+//{
+//public:
+//	CConfigData()
+//	{}
+//	~CConfigData()
+//	{
+//	}
+//	T
+//};

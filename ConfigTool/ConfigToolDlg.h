@@ -3,7 +3,6 @@
 //
 
 #pragma once
-#include "SerialProcess.h"
 
 // CConfigToolDlg ¶Ô»°¿ò
 class CConfigToolDlg : public CDialogEx
@@ -31,8 +30,6 @@ protected:
 public:
 	afx_msg void OnEnChangeEdit1();
 	afx_msg void OnBnClickedButton1();
-	CDataProcesserPtr m_spSerialDP;
-	CPicaSoftLog m_iLog;
 	afx_msg void OnBnClickedButton2();
 	afx_msg void OnBnClickedButton3();
 };

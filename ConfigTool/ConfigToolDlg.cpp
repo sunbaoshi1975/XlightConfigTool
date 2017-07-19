@@ -6,12 +6,13 @@
 #include "ConfigTool.h"
 #include "ConfigToolDlg.h"
 #include "afxdialogex.h"
-
+#include "Public.h"
+#include "ConfigCenter.h"
+#include "Protocol.h"
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-SuperSensorConfig_t g_SuperSensorCfg;
-ScannerStatus_t g_ScannerStatus;
+
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -98,10 +99,7 @@ BOOL CConfigToolDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
-	m_spSerialDP = boost::make_shared<CDataProcesser>();
-	PICASOFT_SET_GLOBALLOGPOINTER(&m_iLog);
-	m_iLog.SetLevel(ELL_TRACE);
-	m_iLog.EnableFileLog(_T("$(ApplicationPath)ConfigTool.Log"), 100 * 1024 * 1024);
+
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -161,15 +159,15 @@ void CConfigToolDlg::OnBnClickedButton1()
 	// TODO: 在此添加控件通知处理程序代码
 	// start scan
 	BYTE channel = 71; 
-	BYTE bandwidth = 0;
+	BYTE bandwidth = 2;
 	BYTE powerlevel = 3;
-	BYTE network[5] = { 0x00,0x54,0x49,0x54,0x44 };
+	BYTE network[5] = { 0xFE,0x54,0x49,0x54,0x44 };
 	CEdit* pBoxOne;
 	pBoxOne = (CEdit*)GetDlgItem(IDC_EDIT1);
 	CString str;
 	pBoxOne->GetWindowText(str);
 	channel = atoi(str);
-	m_spSerialDP->SendStartScan(channel, bandwidth, powerlevel, network);
+	ConfigCenter::GetInstance()->m_spSerialDP->SendStartScan(channel, bandwidth, powerlevel, network);
 }
 
 
@@ -179,8 +177,10 @@ void CConfigToolDlg::OnBnClickedButton2()
 	// get config
 	// TODO: 在此添加控件通知处理程序代码
 	UC uniqueid[8] = { 0x00,0x24,0x00,0x3A,0x0E,0x47,0x31,0x32 };
-	int a = sizeof(SuperSensorConfig_t);
-	m_spSerialDP->SendGetConfigByUniqueid(uniqueid, 8, 4, 1);
+	//UC uniqueid[8] = { 0x00,0x39,0x00,0x63,0x0B,0x47,0x36,0x31 };
+	//UC uniqueid[8] = { 0x7B,0x00,0x3D,0x00,0x08,0x47,0x36,0x34 };
+	ConfigCenterPtr spCenter = ConfigCenter::GetInstance();
+	spCenter->m_spSerialDP->SendGetConfigByUniqueid(uniqueid, 8, 0, 0);
 }
 
 
@@ -188,6 +188,19 @@ void CConfigToolDlg::OnBnClickedButton3()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	UC uniqueid[8] = { 0x00,0x24,0x00,0x3A,0x0E,0x47,0x31,0x32 };
-	UC subid[1] = { 0x47 };
-	m_spSerialDP->SendSetConfigByNodeid(130,0,subid,4,1);
+	//UC subid[1] = { 0x47 };
+	//m_spSerialDP->SendSetConfigByNodeid(130,0,subid,4,1);
+	MySetUpRFByNode_t rf;
+	rf.channel = 71;
+	rf.datarate = 0;
+	rf.powerlevel = 3;
+	rf.network[0] = 0x00;
+	rf.network[1] = 0x54;
+	rf.network[2] = 0x49;
+	rf.network[3] = 0x54;
+	rf.network[4] = 0x44;
+	rf.network[5] = 0x00;
+	rf.nodeid = 0;
+	rf.subid = 0;
+	ConfigCenter::GetInstance()->m_spSerialDP->SendRFByNode(0,0, rf);
 }

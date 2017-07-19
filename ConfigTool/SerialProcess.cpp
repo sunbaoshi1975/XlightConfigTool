@@ -2,6 +2,7 @@
 #include "SerialProcess.h"
 #include "global.h"
 #include "Protocol.h"
+#include "ConfigCenter.h"
 
 CString GetNetworkidHexStr(UC* NetworkID, int len);
 CString GetUniqueIDHexStr(UC* UniqueID, int len);
@@ -269,6 +270,31 @@ BOOL CDataProcesser::SendGetConfigByNode(UC nodeid, UC subid, UC offset, UC size
 	return TRUE;
 }
 
+BOOL CDataProcesser::SendRFByNode(UC Nodeid, UC subid, MySetUpRFByNode_t& rfparam)
+{
+	rfparam.subtype = SCANNER_SETUP_RF;
+	UC length = sizeof(MySetUpRFByNode_t);
+	SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
+	build(spMsg, 255, 0, C_INTERNAL, I_GET_NONCE, 1, 0);
+	mSetLength(spMsg, length);
+	memcpy(&(spMsg->data[0]), &rfparam, length);
+	SendSerialMsg(spMsg);
+	return TRUE;
+}
+
+BOOL CDataProcesser::SendRFByUniqueid(UC* uniqueid, UC uniLen, MySetUpRF_t& rfparam)
+{
+	rfparam.subtype = SCANNER_SETUPDEV_RF;
+	memcpy(rfparam.uniqueid, uniqueid, uniLen);
+	UC length = sizeof(MySetUpRF_t);
+	SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
+	build(spMsg, 255, 0, C_INTERNAL, I_GET_NONCE, 1, 0);
+	mSetLength(spMsg, length);
+	memcpy(&(spMsg->data[0]), &rfparam, length);
+	SendSerialMsg(spMsg);
+	return TRUE;
+}
+
 int CDataProcesser::ProcessSerialMsg(SPScanMsgPtr lpMsg)
 {
 	if (lpMsg->header.last != 0)
@@ -306,7 +332,19 @@ int CDataProcesser::ProcessProbe(SPScanMsgPtr lpMsg)
 	memcpy(uniqueid, &(lpMsg->data[1]), sizeof(uniqueid));
 	UC nodeid = lpMsg->header.sender;
 	UC subid = lpMsg->header.sensor;
-	PLOG(ELL_INFORMATION, "Recv probe nodeid=%d,subid=%d,uniqueid=%s",nodeid,subid, GetUniqueIDHexStr(uniqueid,8));
+	BaseDeviceInfo_t baseInfo;
+	UC playl_len = 9;
+	baseInfo.version = lpMsg->data[playl_len++];
+	baseInfo.type = lpMsg->data[playl_len++];
+	baseInfo.nodeID = lpMsg->data[playl_len++];
+	baseInfo.subID = lpMsg->data[playl_len++];
+	baseInfo.rfChannel = lpMsg->data[playl_len++];
+	baseInfo.rfDataRate = lpMsg->data[playl_len] >> 2;
+	baseInfo.rfPowerLevel = lpMsg->data[playl_len++] & 0x03;
+	memcpy(baseInfo.networkID, &(lpMsg->data[playl_len]), sizeof(baseInfo.networkID));
+	ConfigCenter::GetInstance()->AddDeviceBaseInfo(GetUniqueIDHexStr(uniqueid, 8), baseInfo);
+	PLOG(ELL_INFORMATION, "Recv probe nodeid=%d,subid=%d,uniqueid=%s,version=%d,type=%d,channel=%d,rfDatarate=%d,rfpowerlevel=%d", 
+		nodeid,subid, GetUniqueIDHexStr(uniqueid,8), baseInfo.version, baseInfo.type, baseInfo.rfChannel, baseInfo.rfDataRate, baseInfo.rfPowerLevel);
 	return 1;
 }
 
@@ -318,50 +356,65 @@ int CDataProcesser::ProcessGetConfig(SPScanMsgPtr lpMsg)
 		PLOG(ELL_ERROR, "ProcessProbe error offset less than 0,invalid");
 		return -1;
 	}
-	if (lpMsg->header.sender == 130)
+	// tests
+	UC uniqueid[8] = { 0x00,0x24,0x00,0x3A,0x0E,0x47,0x31,0x32 };
+	if (lpMsg->data[0] == SCANNER_GETCONFIG)
 	{
-		if (offset < sizeof(SuperSensorConfig_t))
-		{
-			unsigned char playloadsize = mGetLength(lpMsg);
-			unsigned char cfgblocksize = playloadsize - 1;
-			memcpy((void *)((size_t)(&g_SuperSensorCfg) + offset), &(lpMsg->data[2]), cfgblocksize);
-			CString sbtnActionHex = "";
-			for (DWORD i = 0; i < MAX_NUM_BUTTONS; i++)
-			{
-				for (DWORD j = 0; j < 8; j++)
-				{
-					CString sTmp = "";
-					sTmp.Format("0x%02X", g_SuperSensorCfg.btnAction[i][j]);
-					sbtnActionHex += sTmp;
-				}
-			}
-			PLOG(ELL_INFORMATION, "supersensor config is :");
-			PLOG(ELL_INFORMATION, "version = %d", g_SuperSensorCfg.version);
-			PLOG(ELL_INFORMATION, "nodeid = %d", g_SuperSensorCfg.nodeID);
-			PLOG(ELL_INFORMATION, "networkid=%s", GetNetworkidHexStr(g_SuperSensorCfg.NetworkID,5));
-			PLOG(ELL_INFORMATION, "present=%d", g_SuperSensorCfg.present);
-			PLOG(ELL_INFORMATION, "state=%d", g_SuperSensorCfg.state);
-			PLOG(ELL_INFORMATION, "reserved=%d", g_SuperSensorCfg.reserved0);
-			PLOG(ELL_INFORMATION, "subid=%d", g_SuperSensorCfg.subID);
-			PLOG(ELL_INFORMATION, "type=%d", g_SuperSensorCfg.type);
-			PLOG(ELL_INFORMATION, "token=0x%02X", g_SuperSensorCfg.token[0] * 256 + g_SuperSensorCfg.token[1]);
-			PLOG(ELL_INFORMATION, "powerlevel=%d", g_SuperSensorCfg.rfPowerLevel);
-			PLOG(ELL_INFORMATION, "swtimes=%d", g_SuperSensorCfg.swTimes);
-			PLOG(ELL_INFORMATION, "rpttimes=%d", g_SuperSensorCfg.rptTimes);
-			PLOG(ELL_INFORMATION, "reserverd1=%d", g_SuperSensorCfg.reserved1);
-			PLOG(ELL_INFORMATION, "senmap=0x%02X", g_SuperSensorCfg.senMap[0]*256 + g_SuperSensorCfg.senMap[1]);
-			PLOG(ELL_INFORMATION, "relaykey=%01x", g_SuperSensorCfg.relay_key_value);
-			PLOG(ELL_INFORMATION, "channel=%d", g_SuperSensorCfg.rfChannel);
-			PLOG(ELL_INFORMATION, "datarate=%d", g_SuperSensorCfg.rfDataRate);
-			PLOG(ELL_INFORMATION, "reserved=%d", g_SuperSensorCfg.reserved2);
-			PLOG(ELL_INFORMATION, "btnaction=%s", sbtnActionHex);
-		}
-		else
-		{
-			PLOG(ELL_ERROR, "ProcessProbe error offset over max length,invalid");
-			return -1;
-		}
+		// get uniqueid by nodeid & subid
 	}
+	else
+	{
+
+	}
+	memcpy(uniqueid, &lpMsg->data[2], 8);
+	unsigned char playloadsize = mGetLength(lpMsg);
+	unsigned char cfgblocksize = playloadsize - 10;
+	ConfigCenter::GetInstance()->SetConfigStrByUniqueid(GetUniqueIDHexStr(uniqueid, 8), offset, &(lpMsg->data[10]), cfgblocksize);
+	ConfigCenter::GetInstance()->GetConfigStrByUniqueid(GetUniqueIDHexStr(uniqueid,8));
+	//if (lpMsg->header.sender == 130)
+	//{
+	//	if (offset < sizeof(SuperSensorConfig_t))
+	//	{
+	//		unsigned char playloadsize = mGetLength(lpMsg);
+	//		unsigned char cfgblocksize = playloadsize - 1;
+	//		memcpy((void *)((size_t)(&g_SuperSensorCfg) + offset), &(lpMsg->data[2]), cfgblocksize);
+	//		CString sbtnActionHex = "";
+	//		for (DWORD i = 0; i < MAX_NUM_BUTTONS; i++)
+	//		{
+	//			for (DWORD j = 0; j < 8; j++)
+	//			{
+	//				CString sTmp = "";
+	//				sTmp.Format("0x%02X", g_SuperSensorCfg.btnAction[i][j]);
+	//				sbtnActionHex += sTmp;
+	//			}
+	//		}
+	//		PLOG(ELL_INFORMATION, "supersensor config is :");
+	//		PLOG(ELL_INFORMATION, "version = %d", g_SuperSensorCfg.version);
+	//		PLOG(ELL_INFORMATION, "nodeid = %d", g_SuperSensorCfg.nodeID);
+	//		PLOG(ELL_INFORMATION, "networkid=%s", GetNetworkidHexStr(g_SuperSensorCfg.NetworkID,5));
+	//		PLOG(ELL_INFORMATION, "present=%d", g_SuperSensorCfg.present);
+	//		PLOG(ELL_INFORMATION, "state=%d", g_SuperSensorCfg.state);
+	//		PLOG(ELL_INFORMATION, "reserved=%d", g_SuperSensorCfg.reserved0);
+	//		PLOG(ELL_INFORMATION, "subid=%d", g_SuperSensorCfg.subID);
+	//		PLOG(ELL_INFORMATION, "type=%d", g_SuperSensorCfg.type);
+	//		PLOG(ELL_INFORMATION, "token=0x%02X", g_SuperSensorCfg.token[0] * 256 + g_SuperSensorCfg.token[1]);
+	//		PLOG(ELL_INFORMATION, "powerlevel=%d", g_SuperSensorCfg.rfPowerLevel);
+	//		PLOG(ELL_INFORMATION, "swtimes=%d", g_SuperSensorCfg.swTimes);
+	//		PLOG(ELL_INFORMATION, "rpttimes=%d", g_SuperSensorCfg.rptTimes);
+	//		PLOG(ELL_INFORMATION, "reserverd1=%d", g_SuperSensorCfg.reserved1);
+	//		PLOG(ELL_INFORMATION, "senmap=0x%02X", g_SuperSensorCfg.senMap[0]*256 + g_SuperSensorCfg.senMap[1]);
+	//		PLOG(ELL_INFORMATION, "relaykey=%01x", g_SuperSensorCfg.relay_key_value);
+	//		PLOG(ELL_INFORMATION, "channel=%d", g_SuperSensorCfg.rfChannel);
+	//		PLOG(ELL_INFORMATION, "datarate=%d", g_SuperSensorCfg.rfDataRate);
+	//		PLOG(ELL_INFORMATION, "reserved=%d", g_SuperSensorCfg.reserved2);
+	//		PLOG(ELL_INFORMATION, "btnaction=%s", sbtnActionHex);
+	//	}
+	//	else
+	//	{
+	//		PLOG(ELL_ERROR, "ProcessProbe error offset over max length,invalid");
+	//		return -1;
+	//	}
+	//}
 	return 1;
 }
 
@@ -376,53 +429,4 @@ int CDataProcesser::ProcessScannerStatus(SPScanMsgPtr lpMsg)
 	PLOG(ELL_INFORMATION, "network=%s", GetNetworkidHexStr(g_ScannerStatus.network,5));
 	return 1;
 }
-
-CString GetNetworkidHexStr(UC* NetworkID,int len)
-{
-	CString snetworkid = "";
-	for (DWORD i = 0; i < len; i++)
-	{
-		CString sTmp = "";
-		sTmp.Format("%02X", NetworkID[i]);
-		snetworkid += sTmp;
-	}
-	return snetworkid;
-}
-
-CString GetUniqueIDHexStr(UC* UniqueID,int len)
-{
-	CString sUniqueid = "";
-	for (DWORD i = 0; i < len; i++)
-	{
-		CString sTmp = "";
-		sTmp.Format("%02X", UniqueID[i]);
-		sUniqueid += sTmp;
-	}
-	return sUniqueid;
-}
-
-CString GetSenMapHexStr(UC* senmap, int len)
-{
-	CString sSenmap = "";
-	for (DWORD i = 0; i < len; i++)
-	{
-		CString sTmp = "";
-		sTmp.Format("%02X", senmap[i]);
-		sSenmap += sTmp;
-	}
-	return sSenmap;
-}
-
-CString GetTokenHexStr(UC* token, int len)
-{
-	CString sToken = "";
-	for (DWORD i = 0; i < len; i++)
-	{
-		CString sTmp = "";
-		sTmp.Format("%02X", token[i]);
-		sToken += sTmp;
-	}
-	return sToken;
-}
-
 
