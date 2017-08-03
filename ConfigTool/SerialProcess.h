@@ -29,12 +29,13 @@ public:
 	BOOL SendSerialMsg(SPScanMsgPtr spMsg);
 	BOOL SendStartScan(BYTE channel, BYTE bandwidth, BYTE powerlevel, BYTE network[5]);
 
+	BOOL SendStopScan(BYTE channel, BYTE bandwidth, BYTE powerlevel, BYTE network[5]);
 	BOOL SendSetConfigByNodeid(UC nodeid, UC subid, const UC * pCfgData, UC offset, UC size);
 	BOOL SendSetConfigByUniqueid(UC* uniqueid, UC uniLen, const UC * pCfgData, UC offset, UC size);
 	BOOL SendGetConfigByUniqueid(UC* uniqueid, UC uniLen, UC offset, UC size);
 	BOOL SendGetConfigByNode(UC nodeid, UC subid, UC offset, UC size);
-	BOOL SendRFByNode(UC Nodeid,UC subid, MySetUpRFByNode_t& rfparam);
-	BOOL SendRFByUniqueid(UC* uniqueid, UC uniLen, MySetUpRF_t& rfparam);
+	BOOL SendRFByNode(UC Nodeid,UC subid, MySetUpRF_t& rfparam, UC paramlen);
+	BOOL SendRFByUniqueid(UC* uniqueid, UC uniLen, MySetUpRF_t& rfparam, UC paramlen);
 	int ProcessSerialMsg(SPScanMsgPtr lpMsg);
 	int ProcessProbe(SPScanMsgPtr lpMsg);
 	int ProcessGetConfig(SPScanMsgPtr lpMsg);

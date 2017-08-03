@@ -50,6 +50,8 @@
 #endif
 #endif
 
+#define  CGRIDLISTCTRLEX_GROUPMODE
+
 #include <PicaSoftHead.h>
 #include <PicaSoftAssistant.h>
 #include <PicaSoftLog.h>

@@ -4,8 +4,6 @@
 #include "Protocol.h"
 #include "ConfigCenter.h"
 
-CString GetNetworkidHexStr(UC* NetworkID, int len);
-CString GetUniqueIDHexStr(UC* UniqueID, int len);
 // Assemble message
 void build(SPScanMsgPtr spMsg,UC _destination, UC _sensor, UC _command, UC _type, bool _enableAck, bool _isAck)
 {
@@ -20,9 +18,6 @@ void build(SPScanMsgPtr spMsg,UC _destination, UC _sensor, UC _command, UC _type
 }
 CDataProcesser::CDataProcesser(void)
 {
-	m_thdMainWork.SetThreadProc(this, &CDataProcesser::WorkProc, NULL, _T("串口数据处理线程"));
-	Start();
-	Init();
 }
 
 
@@ -107,7 +102,16 @@ UINT CDataProcesser::WorkProc(LPVOID)
 
 BOOL CDataProcesser::Init()
 {
-	m_serial.Connect("COM9");
+	if (!m_serial.Connect(g_Settings.sComPort))
+	{
+		PLOG(ELL_ERROR, _T("Connect %s failed!"), g_Settings.sComPort);
+		return FALSE;
+	}
+	else
+	{
+		m_thdMainWork.SetThreadProc(this, &CDataProcesser::WorkProc, NULL, _T("串口数据处理线程"));
+		Start();
+	}
 	return TRUE;
 }
 
@@ -159,32 +163,56 @@ BOOL CDataProcesser::SendSerialMsg(SPScanMsgPtr spMsg)
 
 BOOL CDataProcesser::SendStartScan(BYTE channel,BYTE bandwidth,BYTE powerlevel,BYTE network[5])
 {
-	BYTE headerIden[2] = { 0x55,0xAA };
-	BYTE length = 16;
-	BYTE sensormsgheader[7] = { 'S',0,0,0,0,0,0 };
-	BYTE scanmsg[8];
-	scanmsg[0] = channel;
-	scanmsg[1] = bandwidth;
-	scanmsg[2] = powerlevel;
-	memcpy(&scanmsg[3], network, 5);
-	UINT checksum = length;
-	for (int i = 0; i < sizeof(sensormsgheader); i++)
-	{
-		checksum += sensormsgheader[i];
-	}
-	for (int i = 0;i< sizeof(scanmsg);i++)
-	{
-		checksum += scanmsg[i];
-	}
-	checksum = checksum & 0x0000FFFF;
-	BYTE cs[2];
-	cs[0] = checksum / 256;
-	cs[1] = checksum % 256;
-	m_serial.Write(headerIden, 2);
-	m_serial.Write(&length,1);
-	m_serial.Write(sensormsgheader,7);
-	m_serial.Write(scanmsg, 8);
-	m_serial.Write(cs, 2);
+	//BYTE headerIden[2] = { 0x55,0xAA };
+	//BYTE length = 16;
+	//BYTE sensormsgheader[7] = { 'S',0,0,0,0,0,0 };
+	//BYTE scanmsg[8];
+	//scanmsg[0] = channel;
+	//scanmsg[1] = bandwidth;
+	//scanmsg[2] = powerlevel;
+	//memcpy(&scanmsg[3], network, 5);
+	//UINT checksum = length;
+	//for (int i = 0; i < sizeof(sensormsgheader); i++)
+	//{
+	//	checksum += sensormsgheader[i];
+	//}
+	//for (int i = 0;i< sizeof(scanmsg);i++)
+	//{
+	//	checksum += scanmsg[i];
+	//}
+	//checksum = checksum & 0x0000FFFF;
+	//BYTE cs[2];
+	//cs[0] = checksum / 256;
+	//cs[1] = checksum % 256;
+	//m_serial.Write(headerIden, 2);
+	//m_serial.Write(&length,1);
+	//m_serial.Write(sensormsgheader,7);
+	//m_serial.Write(scanmsg, 8);
+	//m_serial.Write(cs, 2);
+	//return TRUE;
+	SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
+	build(spMsg, 250, 0, 0, 0, 0, 0);
+	spMsg->header.last = RFS_CMD_SCAN_START;
+	spMsg->data[0] = channel;
+	spMsg->data[1] = bandwidth;
+	spMsg->data[2] = powerlevel;
+	memcpy(&spMsg->data[3], network, 5);
+	mSetLength(spMsg, 8);
+	SendSerialMsg(spMsg);
+	return TRUE;
+}
+
+BOOL CDataProcesser::SendStopScan(BYTE channel, BYTE bandwidth, BYTE powerlevel, BYTE network[5])
+{
+	SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
+	build(spMsg, 250, 0, 0, 0, 0, 0);
+	spMsg->header.last = RFS_CMD_SCAN_STOP;
+	spMsg->data[0] = channel;
+	spMsg->data[1] = bandwidth;
+	spMsg->data[2] = powerlevel;
+	memcpy(&spMsg->data[3], network, 5);
+	mSetLength(spMsg, 8);
+	SendSerialMsg(spMsg);
 	return TRUE;
 }
 
@@ -270,27 +298,31 @@ BOOL CDataProcesser::SendGetConfigByNode(UC nodeid, UC subid, UC offset, UC size
 	return TRUE;
 }
 
-BOOL CDataProcesser::SendRFByNode(UC Nodeid, UC subid, MySetUpRFByNode_t& rfparam)
+BOOL CDataProcesser::SendRFByNode(UC Nodeid, UC subid, MySetUpRF_t& rfparam, UC paramlen)
 {
-	rfparam.subtype = SCANNER_SETUP_RF;
-	UC length = sizeof(MySetUpRFByNode_t);
+	UC length = paramlen;
 	SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
-	build(spMsg, 255, 0, C_INTERNAL, I_GET_NONCE, 1, 0);
+	spMsg->data[0] = SCANNER_SETUPDEV_RF;
+	length++;
+	//SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
+	build(spMsg, Nodeid, subid, C_INTERNAL, I_GET_NONCE, 1, 0);
 	mSetLength(spMsg, length);
-	memcpy(&(spMsg->data[0]), &rfparam, length);
+	memcpy(&(spMsg->data[1]), &rfparam, paramlen);
 	SendSerialMsg(spMsg);
 	return TRUE;
 }
 
-BOOL CDataProcesser::SendRFByUniqueid(UC* uniqueid, UC uniLen, MySetUpRF_t& rfparam)
+BOOL CDataProcesser::SendRFByUniqueid(UC* uniqueid, UC uniLen, MySetUpRF_t& rfparam,UC paramlen)
 {
-	rfparam.subtype = SCANNER_SETUPDEV_RF;
-	memcpy(rfparam.uniqueid, uniqueid, uniLen);
-	UC length = sizeof(MySetUpRF_t);
+	UC length = paramlen;
 	SPScanMsgPtr spMsg = boost::make_shared<MyScanMsg_t>();
+	spMsg->data[0] = SCANNER_SETUPDEV_RF;
+	length++;
+	memcpy(&spMsg->data[1], uniqueid, uniLen);
+	length += uniLen;
 	build(spMsg, 255, 0, C_INTERNAL, I_GET_NONCE, 1, 0);
 	mSetLength(spMsg, length);
-	memcpy(&(spMsg->data[0]), &rfparam, length);
+	memcpy(&(spMsg->data[1+UNIQUE_ID_LEN]), &rfparam, paramlen);
 	SendSerialMsg(spMsg);
 	return TRUE;
 }
@@ -342,9 +374,10 @@ int CDataProcesser::ProcessProbe(SPScanMsgPtr lpMsg)
 	baseInfo.rfDataRate = lpMsg->data[playl_len] >> 2;
 	baseInfo.rfPowerLevel = lpMsg->data[playl_len++] & 0x03;
 	memcpy(baseInfo.networkID, &(lpMsg->data[playl_len]), sizeof(baseInfo.networkID));
-	ConfigCenter::GetInstance()->AddDeviceBaseInfo(GetUniqueIDHexStr(uniqueid, 8), baseInfo);
-	PLOG(ELL_INFORMATION, "Recv probe nodeid=%d,subid=%d,uniqueid=%s,version=%d,type=%d,channel=%d,rfDatarate=%d,rfpowerlevel=%d", 
-		nodeid,subid, GetUniqueIDHexStr(uniqueid,8), baseInfo.version, baseInfo.type, baseInfo.rfChannel, baseInfo.rfDataRate, baseInfo.rfPowerLevel);
+	ConfigCenter::GetInstance()->AddDeviceBaseInfo(GetHexStr(uniqueid, 8), baseInfo);
+	
+	PLOG(ELL_INFORMATION, "Recv probe nodeid=%d,subid=%d,uniqueid=%s,version=%d,type=%d,channel=%d,rfDatarate=%d,rfpowerlevel=%d,networkid=%s", 
+		baseInfo.nodeID, baseInfo.subID, GetHexStr(uniqueid,8), baseInfo.version, baseInfo.type, baseInfo.rfChannel, baseInfo.rfDataRate, baseInfo.rfPowerLevel, GetHexStr(baseInfo.networkID, 5,TRUE));
 	return 1;
 }
 
@@ -369,8 +402,8 @@ int CDataProcesser::ProcessGetConfig(SPScanMsgPtr lpMsg)
 	memcpy(uniqueid, &lpMsg->data[2], 8);
 	unsigned char playloadsize = mGetLength(lpMsg);
 	unsigned char cfgblocksize = playloadsize - 10;
-	ConfigCenter::GetInstance()->SetConfigStrByUniqueid(GetUniqueIDHexStr(uniqueid, 8), offset, &(lpMsg->data[10]), cfgblocksize);
-	ConfigCenter::GetInstance()->GetConfigStrByUniqueid(GetUniqueIDHexStr(uniqueid,8));
+	ConfigCenter::GetInstance()->SetConfigStrByUniqueid(GetHexStr(uniqueid, 8), offset, &(lpMsg->data[10]), cfgblocksize);
+	ConfigCenter::GetInstance()->GetConfigStrByUniqueid(GetHexStr(uniqueid,8));
 	//if (lpMsg->header.sender == 130)
 	//{
 	//	if (offset < sizeof(SuperSensorConfig_t))
@@ -426,7 +459,7 @@ int CDataProcesser::ProcessScannerStatus(SPScanMsgPtr lpMsg)
 	PLOG(ELL_INFORMATION, "channel = %d", g_ScannerStatus.channel);
 	PLOG(ELL_INFORMATION, "bandwidth = %d", g_ScannerStatus.bandwidth);
 	PLOG(ELL_INFORMATION, "powerlevel=%s", g_ScannerStatus.powerlevel);
-	PLOG(ELL_INFORMATION, "network=%s", GetNetworkidHexStr(g_ScannerStatus.network,5));
+	PLOG(ELL_INFORMATION, "network=%s", GetHexStr(g_ScannerStatus.network,TRUE));
 	return 1;
 }
 

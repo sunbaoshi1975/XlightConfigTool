@@ -36,11 +36,14 @@ typedef struct
 extern SuperSensorConfig_t g_SuperSensorCfg;
 
 // System Startup Status
-#define SYS_INIT                        0
-#define SYS_RESET                       1
-#define SYS_WAIT_COMMAND                2
-#define SYS_PAUSE                       4
-#define SYS_RUNNING                     5
+enum ERFScannerStatus
+{
+	SYS_INIT,
+	SYS_RESET,
+	SYS_WAIT_COMMAND,
+	SYS_PAUSE=4,
+	SYS_RUNNING
+};
 typedef struct
 {
 	UC channel;
@@ -51,8 +54,20 @@ typedef struct
 }ScannerStatus_t;
 extern ScannerStatus_t g_ScannerStatus;
 
+typedef enum { RF24_PA_MIN = 0, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX, RF24_PA_ERROR } rf24_pa_dbm_e;
+typedef enum { RF24_1MBPS = 0, RF24_2MBPS, RF24_250KBPS } rf24_datarate_e;
+
+#define RFS_CMD_SCAN_START      'S'
+#define RFS_CMD_SCAN_STOP       'T'
+#define RFS_CMD_SCAN_PAUSE      'P'
+#define RFS_CMD_SCAN_RESUME     'R'
+#define RFS_RPT_SCAN_STATUS     'C'
+
+#define UNIQUE_ID_LEN 8
+#define NETWORK_ID_LEN 5
 typedef struct
 {
+	UC Uniqueid[8];
 	UC version;
 	UC type;
 	UC nodeID;
@@ -62,15 +77,3 @@ typedef struct
 	UC rfPowerLevel;
 	UC networkID[6];
 }BaseDeviceInfo_t;
-
-//template < class T >
-//class CConfigData
-//{
-//public:
-//	CConfigData()
-//	{}
-//	~CConfigData()
-//	{
-//	}
-//	T
-//};
